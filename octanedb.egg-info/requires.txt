@@ -1,0 +1,15 @@
+numpy>=1.21.0
+scipy>=1.7.0
+faiss-cpu>=1.7.0
+h5py>=3.1.0
+msgpack>=1.0.0
+tqdm>=4.62.0
+
+[dev]
+pytest>=6.0
+pytest-cov>=2.10
+black>=21.0
+flake8>=3.8
+
+[gpu]
+faiss-gpu>=1.7.0
