@@ -1,4 +1,7 @@
-<img width="500" height="500" alt="CTANE" src="https://github.com/user-attachments/assets/b9be63dc-021e-44b5-8914-55d01c7beb69" />
+<img width="3780" height="1890" alt="CTANE (1)" src="https://github.com/user-attachments/assets/a9a11642-685d-4545-9cc7-8d6468ff6fed" />
+
+
+
 # OctaneDB - Lightweight & Fast Vector Database
 
 A high-performance, lightweight vector database library built in Python, designed to be faster than existing solutions like Pinecone, ChromaDB, and Qdrant.
