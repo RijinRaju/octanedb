@@ -123,9 +123,12 @@ class HNSWIndex:
         # Insert vectors one by one
         for i in range(len(vectors)):
             self._insert_vector(i, vector_ids[i])
+            logger.debug(f"Inserted vector {i} (ID: {vector_ids[i]}) at layer {self._layers[-1] if self._layers else 'N/A'}")
         
         build_time = time.time() - start_time
         logger.info(f"HNSW index built for {len(vectors)} vectors in {build_time:.4f}s")
+        logger.info(f"Final entry point: {self._entry_point}, entry layer: {self._entry_layer}")
+        logger.info(f"Number of layers: {len(self._layers)}")
     
     def _get_max_layer(self, num_vectors: int) -> int:
         """Calculate maximum layer for the given number of vectors."""
@@ -135,8 +138,9 @@ class HNSWIndex:
         """Insert a single vector into the index."""
         # Determine layer for this vector
         layer = self._get_random_layer()
+        logger.debug(f"Vector {vector_idx} (ID: {vector_id}) assigned to layer {layer}")
         
-        # Find nearest neighbors in current layer
+        # Find nearest neighbors in current layer and lower layers
         if self._entry_point is not None:
             nearest = self._search_layer(
                 self._vectors[vector_idx], 
@@ -144,6 +148,26 @@ class HNSWIndex:
                 self.ef_construction, 
                 layer
             )
+            
+            # If no neighbors found in current layer, search in lower layers
+            if not nearest and layer > 0:
+                for lower_layer in range(layer - 1, -1, -1):
+                    lower_nearest = self._search_layer(
+                        self._vectors[vector_idx],
+                        self._entry_point,
+                        self.ef_construction,
+                        lower_layer
+                    )
+                    if lower_nearest:
+                        nearest = lower_nearest
+                        break
+            
+            # If still no neighbors found, create a simple connection to the entry point
+            if not nearest:
+                nearest = [(self._entry_point, self._distance_func(
+                    self._vectors[vector_idx], 
+                    self._vectors[self._entry_point]
+                ))]
         else:
             nearest = []
         
@@ -154,16 +178,26 @@ class HNSWIndex:
         if self._entry_point is None or layer > self._entry_layer:
             self._entry_point = vector_idx
             self._entry_layer = layer
+            logger.debug(f"Updated entry point to {vector_idx} at layer {layer}")
         
         # Add to layers
         for l in range(layer + 1):
             if l not in self._layers:
                 self._layers.append({})
             self._layers[l][vector_idx] = []
+        
+        # Ensure the vector is also added to the bottom layer (layer 0) for searchability
+        if 0 not in self._layers:
+            self._layers.append({})
+        if vector_idx not in self._layers[0]:
+            self._layers[0][vector_idx] = []
     
     def _get_random_layer(self) -> int:
         """Get random layer based on exponential distribution."""
-        return int(-np.log(np.random.random()) * self.m)
+        # Use a smaller factor to avoid extremely high layers
+        # The original used self.m which was too large
+        factor = 1.0  # This gives more reasonable layer distribution
+        return int(-np.log(np.random.random()) * factor)
     
     def _search_layer(
         self, 
@@ -233,7 +267,7 @@ class HNSWIndex:
         # Sort by distance
         nearest.sort(key=lambda x: x[1])
         
-        # Add bidirectional connections
+        # Add bidirectional connections in the current layer
         for neighbor_idx, _ in nearest[:self.m]:
             # Add connection from vector to neighbor
             if vector_idx not in self._layers[layer]:
@@ -244,6 +278,21 @@ class HNSWIndex:
             if neighbor_idx not in self._layers[layer]:
                 self._layers[layer][neighbor_idx] = []
             self._layers[layer][neighbor_idx].append(vector_idx)
+        
+        # Also add connections in the bottom layer (layer 0) for better searchability
+        if layer > 0 and 0 < len(self._layers):
+            for neighbor_idx, _ in nearest[:self.m]:
+                # Add connection from vector to neighbor in bottom layer
+                if vector_idx not in self._layers[0]:
+                    self._layers[0][vector_idx] = []
+                if neighbor_idx not in self._layers[0][vector_idx]:
+                    self._layers[0][vector_idx].append(neighbor_idx)
+                
+                # Add connection from neighbor to vector in bottom layer
+                if neighbor_idx not in self._layers[0]:
+                    self._layers[0][neighbor_idx] = []
+                if vector_idx not in self._layers[0][neighbor_idx]:
+                    self._layers[0][neighbor_idx].append(vector_idx)
     
     def search(self, query: np.ndarray, k: int) -> List[Tuple[int, float]]:
         """
@@ -257,7 +306,10 @@ class HNSWIndex:
             List of (vector_id, distance) tuples
         """
         if self._entry_point is None:
+            logger.warning("HNSW search failed: entry_point is None")
             return []
+        
+        logger.debug(f"HNSW search: entry_point={self._entry_point}, entry_layer={self._entry_layer}, layers={len(self._layers)}")
         
         # Start from top layer
         current_layer = self._entry_layer
@@ -270,8 +322,19 @@ class HNSWIndex:
                 current_point = nearest[0][0]
             current_layer -= 1
         
-        # Search in bottom layer
+        # Search in bottom layer (layer 0) where most connections are
         nearest = self._search_layer(query, current_point, self.ef_search, 0)
+        
+        # If no results found in bottom layer, try searching from all vectors in bottom layer
+        if not nearest and len(self._layers) > 0 and self._layers[0]:
+            all_candidates = []
+            for vector_idx in self._layers[0].keys():
+                distance = self._distance_func(query, self._vectors[vector_idx])
+                all_candidates.append((vector_idx, distance))
+            
+            # Sort by distance and take top k
+            all_candidates.sort(key=lambda x: x[1])
+            nearest = all_candidates[:k]
         
         # Convert to vector IDs and return top k
         results = []

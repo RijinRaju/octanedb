@@ -1,0 +1,32 @@
+# Include README and documentation
+include README.md
+include LICENSE
+include CHANGELOG.md
+include requirements.txt
+include pyproject.toml
+
+# Include Python source files
+recursive-include octanedb *.py
+recursive-include tests *.py
+recursive-include examples *.py
+
+# Include data files
+recursive-include octanedb *.txt *.md *.rst
+
+# Exclude build artifacts
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.pyd
+global-exclude __pycache__
+global-exclude *.so
+global-exclude .DS_Store
+global-exclude .git*
+global-exclude .hg*
+global-exclude .svn*
+global-exclude .tox*
+global-exclude .coverage
+global-exclude .pytest_cache*
+global-exclude .mypy_cache*
+global-exclude build/
+global-exclude dist/
+global-exclude *.egg-info/

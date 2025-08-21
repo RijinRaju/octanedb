@@ -1,30 +1,29 @@
 """
-Collection class - Manages vectors, metadata, and indexing for a single collection.
+Collection management for OctaneDB.
+Handles vector storage, indexing, and operations within a collection.
 """
 
-import numpy as np
-import time
 import logging
-from typing import List, Dict, Any, Optional, Tuple, Union
-from collections import defaultdict
+import time
+from typing import Dict, List, Optional, Union, Any, Tuple
+import numpy as np
 
-from .index import HNSWIndex, IndexType
-from .storage import StorageManager
-from .query import QueryEngine
-from .utils import VectorUtils
+from .index import HNSWIndex
+from .embeddings import TextEmbedder, ChromaCompatibleEmbedder
 
 logger = logging.getLogger(__name__)
 
 
 class Collection:
     """
-    Collection class managing vectors, metadata, and indexing operations.
+    A collection of vectors with metadata and indexing capabilities.
     
-    Each collection is an isolated namespace for vectors with its own:
-    - Vector storage and indexing
+    Features:
+    - Vector storage and retrieval
     - Metadata management
-    - Search and query capabilities
-    - Performance optimization
+    - Automatic indexing (HNSW)
+    - Text embedding generation
+    - ChromaDB-compatible API
     """
     
     def __init__(
@@ -37,9 +36,11 @@ class Collection:
         ef_search: int = 100,
         max_elements: int = 1000000,
         distance_metric: str = "cosine",
-        storage_manager: Optional[StorageManager] = None,
-        query_engine: Optional[QueryEngine] = None,
-        vector_utils: Optional[VectorUtils] = None
+        storage_manager=None,
+        query_engine=None,
+        vector_utils=None,
+        embedding_model=None,
+        enable_text_embeddings: bool = True
     ):
         """
         Initialize a collection.
@@ -56,6 +57,8 @@ class Collection:
             storage_manager: Storage manager instance
             query_engine: Query engine instance
             vector_utils: Vector utilities instance
+            embedding_model: Sentence-transformers model name for text embeddings
+            enable_text_embeddings: Whether to enable text embedding functionality
         """
         self.name = name
         self.dimension = dimension
@@ -76,6 +79,23 @@ class Collection:
         self._metadata: Dict[int, Dict[str, Any]] = {}
         self._next_id = 0
         
+        # Text document storage
+        self._documents: Dict[int, str] = {}
+        self._text_embedder = None
+        
+        # Initialize text embeddings if enabled
+        if enable_text_embeddings and embedding_model:
+            try:
+                self._text_embedder = TextEmbedder(embedding_model)
+                # Update dimension if it doesn't match
+                if self._text_embedder.dimension != dimension:
+                    logger.warning(f"Embedding model dimension ({self._text_embedder.dimension}) "
+                                 f"doesn't match collection dimension ({dimension})")
+                    self.dimension = self._text_embedder.dimension
+            except ImportError:
+                logger.warning("Text embeddings disabled: sentence-transformers not available")
+                self._text_embedder = None
+        
         # Index management
         self._index: Optional[HNSWIndex] = None
         self._index_built = False
@@ -87,6 +107,7 @@ class Collection:
             "searches": 0,
             "updates": 0,
             "deletes": 0,
+            "text_documents": 0,
             "index_builds": 0,
             "last_index_build": None
         }
@@ -112,10 +133,10 @@ class Collection:
     
     def insert(
         self, 
-        vectors: Union[np.ndarray, List], 
-        metadata: Optional[List[Dict[str, Any]]] = None,
-        ids: Optional[List[int]] = None
-    ) -> Union[int, List[int]]:
+        vectors, 
+        metadata=None,
+        ids=None
+    ):
         """
         Insert vectors into the collection.
         
@@ -169,8 +190,9 @@ class Collection:
             self._metadata[vector_id] = meta.copy()
             inserted_ids.append(vector_id)
             
-            # Update next_id
-            self._next_id = max(self._next_id, vector_id + 1)
+            # Update next_id (only for integer IDs)
+            if isinstance(vector_id, int):
+                self._next_id = max(self._next_id, vector_id + 1)
         
         # Mark index for rebuild
         self._index_needs_rebuild = True
@@ -183,13 +205,219 @@ class Collection:
         # Return single ID or list based on input
         return inserted_ids[0] if len(inserted_ids) == 1 else inserted_ids
     
+    def add_text_documents(
+        self,
+        documents,
+        ids=None,
+        metadatas=None,
+        batch_size: int = 32,
+        show_progress_bar: bool = False
+    ):
+        """
+        Add text documents with automatic embedding generation (ChromaDB-compatible).
+        
+        Args:
+            documents: Text document(s) to add
+            ids: Document IDs (auto-generated if not provided)
+            metadatas: Optional metadata for documents
+            batch_size: Batch size for embedding generation
+            show_progress_bar: Whether to show progress bar
+            
+        Returns:
+            Dictionary with 'ids', 'embeddings', and 'documents' keys
+        """
+        if not self._text_embedder:
+            raise RuntimeError("Text embeddings not enabled. Set embedding_model during collection creation.")
+        
+        # Ensure documents is a list
+        if isinstance(documents, str):
+            documents = [documents]
+        
+        if not documents:
+            raise ValueError("No documents provided")
+        
+        num_docs = len(documents)
+        
+        # Handle IDs
+        if ids is None:
+            # Auto-generate string IDs
+            ids = [f"doc_{self._next_id + i}" for i in range(num_docs)]
+        elif isinstance(ids, str):
+            ids = [ids]
+        
+        if len(ids) != num_docs:
+            raise ValueError("Number of IDs must match number of documents")
+        
+        # Handle metadata
+        if metadatas is None:
+            metadatas = [{} for _ in range(num_docs)]
+        elif isinstance(metadatas, dict):
+            metadatas = [metadatas for _ in range(num_docs)]
+        
+        if len(metadatas) != num_docs:
+            raise ValueError("Number of metadatas must match number of documents")
+        
+        # Generate embeddings
+        logger.info(f"Generating embeddings for {num_docs} documents...")
+        embeddings = self._text_embedder.embed_texts(
+            documents, 
+            batch_size=batch_size,
+            show_progress_bar=show_progress_bar
+        )
+        
+        # Store documents
+        for doc_id, doc_text in zip(ids, documents):
+            self._documents[doc_id] = doc_text
+        
+        # Insert vectors into collection
+        vector_ids = self.insert(
+            vectors=embeddings,
+            metadata=metadatas,
+            ids=ids
+        )
+        
+        # Update stats
+        self._stats["text_documents"] += num_docs
+        
+        # Prepare result
+        result = {
+            "ids": ids,
+            "embeddings": embeddings,
+            "documents": documents,
+            "metadatas": metadatas,
+            "vector_ids": vector_ids
+        }
+        
+        logger.info(f"Added {num_docs} text documents with IDs: {ids}")
+        return result
+    
+    def add(
+        self,
+        ids=None,
+        documents=None,
+        metadatas=None,
+        embeddings=None
+    ):
+        """
+        ChromaDB-compatible add method for text documents.
+        
+        Args:
+            ids: Document IDs (auto-generated if not provided)
+            documents: Text documents to add
+            metadatas: Optional metadata for documents
+            embeddings: Pre-computed embeddings (optional)
+            
+        Returns:
+            Dictionary with 'ids' and 'embeddings' keys
+        """
+        if documents is not None:
+            # Use text document processing
+            return self.add_text_documents(documents, ids, metadatas)
+        elif embeddings is not None:
+            # Use pre-computed embeddings
+            if isinstance(embeddings, list) and isinstance(embeddings[0], (int, float)):
+                embeddings = [embeddings]
+            embeddings = np.array(embeddings, dtype=np.float32)
+            
+            # Handle IDs
+            if ids is None:
+                ids = [f"vec_{self._next_id + i}" for i in range(len(embeddings))]
+            elif isinstance(ids, str):
+                ids = [ids]
+            
+            # Handle metadata
+            if metadatas is None:
+                metadatas = [{} for _ in range(len(embeddings))]
+            elif isinstance(metadatas, dict):
+                metadatas = [metadatas for _ in range(len(embeddings))]
+            
+            # Insert vectors
+            vector_ids = self.insert(vectors=embeddings, metadata=metadatas, ids=ids)
+            
+            return {
+                "ids": ids,
+                "embeddings": embeddings,
+                "vector_ids": vector_ids
+            }
+        else:
+            raise ValueError("Either 'documents' or 'embeddings' must be provided")
+    
+    def get_document(self, doc_id: str):
+        """Get a text document by ID."""
+        return self._documents.get(doc_id)
+    
+    def list_documents(self):
+        """List all text document IDs."""
+        return list(self._documents.keys())
+    
+    def delete_document(self, doc_id: str) -> bool:
+        """Delete a text document by ID."""
+        if doc_id in self._documents:
+            del self._documents[doc_id]
+            # Also delete the corresponding vector if it exists
+            if doc_id in self._vectors:
+                del self._vectors[doc_id]
+            if doc_id in self._metadata:
+                del self._metadata[doc_id]
+            logger.info(f"Deleted document: {doc_id}")
+            return True
+        return False
+    
+    def clear_documents(self):
+        """Clear all text documents and vectors."""
+        self._documents.clear()
+        self._vectors.clear()
+        self._metadata.clear()
+        self._next_id = 0
+        self._index_built = False
+        self._index_needs_rebuild = False
+        logger.info("Cleared all documents and vectors")
+    
+    def get_collection_info(self):
+        """Get comprehensive information about the collection."""
+        return {
+            "name": self.name,
+            "dimension": self.dimension,
+            "num_vectors": len(self._vectors),
+            "num_documents": len(self._documents),
+            "index_type": self.index_type,
+            "distance_metric": self.distance_metric,
+            "index_built": self._index_built,
+            "text_embeddings_enabled": self._text_embedder is not None,
+            "embedding_model": self._text_embedder.model_name if self._text_embedder else None,
+            "stats": self._stats.copy()
+        }
+    
+    def change_embedding_model(self, model_name: str, **kwargs):
+        """
+        Change the text embedding model.
+        
+        Args:
+            model_name: New sentence-transformers model name
+            **kwargs: Additional arguments for TextEmbedder
+        """
+        if not self._text_embedder:
+            raise RuntimeError("Text embeddings not enabled")
+        
+        old_dimension = self.dimension
+        self._text_embedder.change_model(model_name, **kwargs)
+        
+        # Update collection dimension if it changed
+        if self._text_embedder.dimension != old_dimension:
+            logger.warning(f"Embedding model dimension changed from {old_dimension} to {self._text_embedder.dimension}")
+            self.dimension = self._text_embedder.dimension
+            # Rebuild index with new dimension
+            self._index_needs_rebuild = True
+        
+        logger.info(f"Embedding model changed to: {model_name}")
+    
     def search(
         self, 
-        query_vector: np.ndarray, 
+        query_vector, 
         k: int = 10, 
-        filter: Optional[Dict[str, Any]] = None,
+        filter=None,
         include_metadata: bool = False
-    ) -> List[Tuple[int, float, Optional[Dict[str, Any]]]]:
+    ):
         """
         Search for similar vectors.
         
@@ -232,13 +460,46 @@ class Collection:
         
         return formatted_results
     
+    def search_text(
+        self,
+        query_text: str,
+        k: int = 10,
+        filter=None,
+        include_metadata: bool = False
+    ):
+        """
+        Search for similar documents using text query.
+        
+        Args:
+            query_text: Text query to search for
+            k: Number of results to return
+            filter: Optional metadata filter
+            include_metadata: Whether to include metadata in results
+            
+        Returns:
+            List of (id, distance, metadata) tuples
+        """
+        if not self._text_embedder:
+            raise RuntimeError("Text embeddings not enabled")
+        
+        # Generate embedding for query text
+        query_embedding = self._text_embedder.embed_texts(query_text)[0]
+        
+        # Search using the embedding
+        return self.search(
+            query_vector=query_embedding,
+            k=k,
+            filter=filter,
+            include_metadata=include_metadata
+        )
+    
     def search_batch(
         self, 
-        query_vectors: np.ndarray, 
+        query_vectors, 
         k: int = 10, 
-        filter: Optional[Dict[str, Any]] = None,
+        filter=None,
         include_metadata: bool = False
-    ) -> List[List[Tuple[int, float, Optional[Dict[str, Any]]]]]:
+    ):
         """
         Batch search for similar vectors.
         
@@ -287,7 +548,45 @@ class Collection:
         
         return formatted_batch_results
     
-    def _apply_filter(self, results: List[Tuple[int, float]], filter: Dict[str, Any]) -> List[Tuple[int, float]]:
+    def search_text_batch(
+        self,
+        query_texts,
+        k: int = 10,
+        filter=None,
+        include_metadata: bool = False,
+        batch_size: int = 32
+    ):
+        """
+        Batch search for similar documents using text queries.
+        
+        Args:
+            query_texts: List of text queries
+            k: Number of results per query
+            filter: Optional metadata filter
+            include_metadata: Whether to include metadata in results
+            batch_size: Batch size for embedding generation
+            
+        Returns:
+            List of result lists for each query
+        """
+        if not self._text_embedder:
+            raise RuntimeError("Text embeddings not enabled")
+        
+        # Generate embeddings for all query texts
+        query_embeddings = self._text_embedder.embed_texts(
+            query_texts, 
+            batch_size=batch_size
+        )
+        
+        # Search using the embeddings
+        return self.search_batch(
+            query_vectors=query_embeddings,
+            k=k,
+            filter=filter,
+            include_metadata=include_metadata
+        )
+    
+    def _apply_filter(self, results, filter):
         """
         Apply metadata filter to search results.
         
@@ -298,18 +597,47 @@ class Collection:
         Returns:
             Filtered results
         """
-        if not filter:
+        if not self._query_engine:
+            logger.warning("Query engine not available, returning unfiltered results")
             return results
         
+        # Apply filter using query engine
         filtered_results = []
         for vector_id, distance in results:
             metadata = self._metadata.get(vector_id, {})
-            if self._query_engine.evaluate_filter(metadata, filter):
+            if self._query_engine.evaluate(metadata, filter):
                 filtered_results.append((vector_id, distance))
         
         return filtered_results
     
-    def update(self, id: int, vector: np.ndarray, metadata: Optional[Dict[str, Any]] = None) -> None:
+    def _build_index(self) -> None:
+        """Build or rebuild the vector index."""
+        if not self._vectors:
+            logger.warning("No vectors to index")
+            return
+        
+        start_time = time.time()
+        
+        # Convert vectors to array
+        vector_ids = list(self._vectors.keys())
+        vectors_array = np.array([self._vectors[vid] for vid in vector_ids], dtype=np.float32)
+        
+        # Build index
+        self._index.build(vectors_array, vector_ids)
+        
+        # Update status
+        self._index_built = True
+        self._index_needs_rebuild = False
+        
+        build_time = time.time() - start_time
+        
+        # Update stats
+        self._stats["index_builds"] += 1
+        self._stats["last_index_build"] = time.time()
+        
+        logger.info(f"Index built for {len(vectors_array)} vectors in {build_time:.4f}s")
+    
+    def update(self, id: int, vector, metadata=None) -> None:
         """
         Update a vector.
         
@@ -361,7 +689,7 @@ class Collection:
         
         logger.debug(f"Deleted vector {id} from collection '{self.name}'")
     
-    def delete_batch(self, ids: List[int]) -> None:
+    def delete_batch(self, ids) -> None:
         """
         Batch delete vectors.
         
@@ -371,7 +699,7 @@ class Collection:
         for vector_id in ids:
             self.delete(vector_id)
     
-    def get_vector(self, id: int, include_metadata: bool = False) -> Union[np.ndarray, Tuple[np.ndarray, Optional[Dict[str, Any]]]]:
+    def get_vector(self, id: int, include_metadata: bool = False):
         """
         Get a vector by ID.
         
@@ -396,41 +724,15 @@ class Collection:
         """Get total number of vectors in the collection."""
         return len(self._vectors)
     
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self):
         """Get collection statistics."""
         stats = self._stats.copy()
         stats["vector_count"] = len(self._vectors)
         stats["metadata_count"] = len(self._metadata)
+        stats["document_count"] = len(self._documents)
         stats["index_built"] = self._index_built
         stats["index_needs_rebuild"] = self._index_needs_rebuild
         return stats
-    
-    def _build_index(self) -> None:
-        """Build or rebuild the vector index."""
-        if not self._vectors:
-            logger.warning("No vectors to index")
-            return
-        
-        start_time = time.time()
-        
-        # Convert vectors to array
-        vector_ids = list(self._vectors.keys())
-        vectors_array = np.array([self._vectors[vid] for vid in vector_ids], dtype=np.float32)
-        
-        # Build index
-        self._index.build(vectors_array, vector_ids)
-        
-        # Update status
-        self._index_built = True
-        self._index_needs_rebuild = False
-        
-        build_time = time.time() - start_time
-        
-        # Update stats
-        self._stats["index_builds"] += 1
-        self._stats["last_index_build"] = time.time()
-        
-        logger.info(f"Index built for {len(vectors_array)} vectors in {build_time:.4f}s")
     
     def optimize_index(self) -> None:
         """Optimize the collection's index."""
@@ -448,6 +750,7 @@ class Collection:
         """Clear all vectors from the collection."""
         self._vectors.clear()
         self._metadata.clear()
+        self._documents.clear()
         self._next_id = 0
         self._index_built = False
         self._index_needs_rebuild = False

@@ -1,26 +1,36 @@
 """
-OctaneDB - Lightweight & Fast Vector Database
+OctaneDB - Lightning Fast Vector Database
 
-A high-performance vector database library designed for speed and efficiency.
+A lightweight, high-performance Python vector database library that provides:
+- Fast vector similarity search using HNSW indexing
+- Automatic text embedding generation
+- ChromaDB-compatible API
+- Multiple storage modes (in-memory, persistent, hybrid)
+- Advanced metadata filtering
+- Batch operations for improved performance
 """
 
 from .core import OctaneDB
 from .collection import Collection
-from .index import HNSWIndex, IndexType
+from .index import HNSWIndex, FlatIndex
 from .storage import StorageManager
 from .query import QueryEngine
-from .utils import VectorUtils, DistanceMetrics
+from .utils import VectorUtils
+from .embeddings import TextEmbedder, ChromaCompatibleEmbedder, embed_texts
 
-__version__ = "0.1.0"
-__author__ = "OctaneDB Team"
+__version__ = "1.0.0"
+__author__ = "Rijin"
+__email__ = "rijinraj856@gmail.com"
 
 __all__ = [
     "OctaneDB",
     "Collection", 
     "HNSWIndex",
-    "IndexType",
+    "FlatIndex",
     "StorageManager",
     "QueryEngine",
     "VectorUtils",
-    "DistanceMetrics"
+    "TextEmbedder",
+    "ChromaCompatibleEmbedder",
+    "embed_texts"
 ]

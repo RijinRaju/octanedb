@@ -1,0 +1,177 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "octanedb"
+version = "1.0.1"
+description = "A lightweight, high-performance Python vector database library with ChromaDB compatibility"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Rijin", email = "rijinraj856@gmail.com"}
+]
+maintainers = [
+    {name = "Rijin", email = "rijinraj856@gmail.com"}
+]
+keywords = [
+    "vector-database", 
+    "vector-search", 
+    "embeddings", 
+    "similarity-search", 
+    "machine-learning", 
+    "ai", 
+    "chromadb-compatible",
+    "hnsw",
+    "fast",
+    "lightweight"
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Database",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing :: Linguistic",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.21.0",
+    "h5py>=3.7.0",
+    "msgpack>=1.0.0",
+    "tqdm>=4.62.0",
+    "sentence-transformers>=2.2.0",
+    "transformers>=4.20.0",
+    "torch>=1.12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=22.0.0",
+    "isort>=5.10.0",
+    "flake8>=5.0.0",
+    "mypy>=1.0.0",
+]
+docs = [
+    "sphinx>=5.0.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "myst-parser>=0.18.0",
+]
+benchmark = [
+    "matplotlib>=3.5.0",
+    "pandas>=1.4.0",
+    "seaborn>=0.11.0",
+]
+all = [
+    "octanedb[dev,docs,benchmark]"
+]
+
+[project.urls]
+Homepage = "https://github.com/RijinRaju/octanedb"
+Documentation = "https://github.com/RijinRaju/octanedb#readme"
+Repository = "https://github.com/RijinRaju/octanedb"
+"Bug Tracker" = "https://github.com/RijinRaju/octanedb/issues"
+"Source Code" = "https://github.com/RijinRaju/octanedb"
+Changelog = "https://github.com/RijinRaju/octanedb/blob/main/CHANGELOG.md"
+
+[project.scripts]
+octanedb = "octanedb.cli:main"
+
+[project.gui-scripts]
+octanedb-gui = "octanedb.cli:main"
+
+[tool.setuptools]
+packages = ["octanedb"]
+
+[tool.setuptools.package-data]
+octanedb = ["*.txt", "*.md", "*.rst"]
+
+[tool.setuptools.dynamic]
+# Version is now static in project section
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["octanedb"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+[tool.coverage.run]
+source = ["octanedb"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/env/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]

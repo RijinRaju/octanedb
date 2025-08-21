@@ -1,0 +1,5 @@
+[console_scripts]
+octanedb = octanedb.cli:main
+
+[gui_scripts]
+octanedb-gui = octanedb.cli:main
