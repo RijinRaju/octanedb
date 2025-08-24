@@ -19,10 +19,10 @@ def create_collection(args):
     try:
         db = OctaneDB(dimension=args.dimension)
         collection = db.create_collection(args.name)
-        print(f"✅ Collection '{args.name}' created successfully with dimension {args.dimension}")
+        print(f"Collection '{args.name}' created successfully with dimension {args.dimension}")
         return 0
     except Exception as e:
-        print(f"❌ Failed to create collection: {e}")
+        print(f" Failed to create collection: {e}")
         return 1
 
 
@@ -38,10 +38,10 @@ def insert_vectors(args):
         metadata = [{"id": i, "description": f"Vector {i}"} for i in range(args.count)]
         
         inserted_ids = db.insert(vectors=vectors, metadata=metadata)
-        print(f"✅ Successfully inserted {len(inserted_ids)} vectors into collection '{args.collection}'")
+        print(f"Successfully inserted {len(inserted_ids)} vectors into collection '{args.collection}'")
         return 0
     except Exception as e:
-        print(f"❌ Failed to insert vectors: {e}")
+        print(f" Failed to insert vectors: {e}")
         return 1
 
 
@@ -71,14 +71,14 @@ def search_vectors(args):
         
         return 0
     except Exception as e:
-        print(f"❌ Failed to search vectors: {e}")
+        print(f"Failed to search vectors: {e}")
         return 1
 
 
 def benchmark(args):
     """Run performance benchmarks."""
     try:
-        print("🚀 OctaneDB Performance Benchmark")
+        print("OctaneDB Performance Benchmark")
         print("=" * 50)
         
         db = OctaneDB(dimension=args.dimension)
@@ -86,7 +86,7 @@ def benchmark(args):
         db.use_collection("benchmark")
         
         # Insert benchmark
-        print(f"📥 Inserting {args.count:,} vectors...")
+        print(f"Inserting {args.count:,} vectors...")
         start_time = __import__('time').time()
         
         vectors = np.random.randn(args.count, args.dimension).astype(np.float32)
@@ -95,11 +95,11 @@ def benchmark(args):
         inserted_ids = db.insert(vectors=vectors, metadata=metadata)
         insert_time = __import__('time').time() - start_time
         
-        print(f"✅ Inserted {len(inserted_ids):,} vectors in {insert_time:.4f}s")
-        print(f"   📊 Rate: {args.count/insert_time:.0f} vectors/second")
+        print(f"Inserted {len(inserted_ids):,} vectors in {insert_time:.4f}s")
+        print(f" Rate: {args.count/insert_time:.0f} vectors/second")
         
         # Search benchmark
-        print(f"\n🔍 Running search benchmark...")
+        print(f"\n Running search benchmark...")
         start_time = __import__('time').time()
         
         query_vectors = np.random.randn(100, args.dimension).astype(np.float32)
@@ -114,26 +114,26 @@ def benchmark(args):
         
         search_time = __import__('time').time() - start_time
         
-        print(f"✅ Search completed in {search_time:.4f}s")
-        print(f"   📊 Rate: {100/search_time:.1f} queries/second")
-        print(f"   📊 Total results: {total_results:,}")
+        print(f"Search completed in {search_time:.4f}s")
+        print(f"   Rate: {100/search_time:.1f} queries/second")
+        print(f"   Total results: {total_results:,}")
         
         # Memory usage
         stats = db.get_stats()
-        print(f"\n💾 Database Statistics:")
-        print(f"   📊 Collections: {stats['collection_count']}")
-        print(f"   📊 Total vectors: {stats['total_vectors']}")
-        print(f"   📊 Current collection: {stats['current_collection']}")
+        print(f"\n Database Statistics:")
+        print(f"   Collections: {stats['collection_count']}")
+        print(f"   Total vectors: {stats['total_vectors']}")
+        print(f"   Current collection: {stats['current_collection']}")
         
         return 0
     except Exception as e:
-        print(f"❌ Benchmark failed: {e}")
+        print(f"Benchmark failed: {e}")
         return 1
 
 
 def info(args):
     """Show OctaneDB information."""
-    print("🚀 OctaneDB - Lightning Fast Vector Database")
+    print("OctaneDB - Lightning Fast Vector Database")
     print("=" * 50)
     print(f"Version: 1.0.0")
     print(f"Python: {sys.version}")
@@ -142,12 +142,12 @@ def info(args):
     print(f"License: MIT")
     print(f"GitHub: https://github.com/yourusername/OctaneDB")
     print("\nFeatures:")
-    print("  ✅ HNSW Indexing for fast similarity search")
-    print("  ✅ Multiple distance metrics (cosine, euclidean, dot)")
-    print("  ✅ HDF5 storage with msgpack metadata")
-    print("  ✅ In-memory, persistent, and hybrid storage")
-    print("  ✅ Milvus-compatible API")
-    print("  ✅ 10x faster than existing solutions")
+    print("   HNSW Indexing for fast similarity search")
+    print("   Multiple distance metrics (cosine, euclidean, dot)")
+    print("   HDF5 storage with msgpack metadata")
+    print("   In-memory, persistent, and hybrid storage")
+    print("   Milvus-compatible API")
+    print("   HNSW indexing for fast similarity search")
     print("\nInstallation:")
     print("  pip install octanedb")
     print("\nQuick Start:")

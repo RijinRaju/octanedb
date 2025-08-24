@@ -8,14 +8,14 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**OctaneDB** is a lightweight, high-performance Python vector database library that provides **10x faster** performance than existing solutions like Pinecone, ChromaDB, and Qdrant. Built with modern Python and optimized algorithms, it's perfect for AI/ML applications requiring fast similarity search.
+**OctaneDB** is a lightweight, high-performance Python vector database library built with modern Python and optimized algorithms. It's perfect for AI/ML applications requiring fast similarity search with HNSW indexing and flexible storage options.
 
 ## **Key Features**
 
 ### **Performance**
-- **10x faster** than existing vector databases
-- **Sub-millisecond** query response times
-- **3,000+ vectors/second** insertion rate
+- **Fast HNSW indexing** for approximate nearest neighbor search
+- **Sub-millisecond** query response times for typical workloads
+- **Efficient insertion** with configurable batch sizes
 - **Optimized memory usage** with HDF5 compression
 
 ### **Advanced Indexing**
@@ -260,14 +260,47 @@ for doc_id, distance, metadata in results:
 
 ## **Performance Benchmarks**
 
-| Operation | OctaneDB | ChromaDB | Pinecone | Qdrant |
-|-----------|----------|----------|----------|---------|
-| **Insert (vectors/sec)** | 3,200 | 320 | 280 | 450 |
-| **Search (ms)** | 0.8 | 8.2 | 15.1 | 12.3 |
-| **Memory Usage** | 1.2GB | 2.8GB | 3.1GB | 2.5GB |
-| **Index Build Time** | 45s | 180s | 120s | 95s |
+### **OctaneDB Performance Characteristics**
 
-*Benchmarks performed on 100K vectors, 384 dimensions, Intel i7-12700K, 32GB RAM*
+**Test Environment:**
+- **Hardware**: Intel i5-1300H, 16GB RAM, SSD storage
+- **Dataset**: 100K vectors, 384 dimensions (float32)
+- **Index Type**: HNSW with default parameters (m=16, ef_construction=200, ef_search=100)
+- **Distance Metric**: Cosine similarity
+- **Storage Mode**: In-memory
+
+**Performance Results:**
+
+| Operation | Performance | Notes |
+|-----------|-------------|-------|
+| **Vector Insertion** | 2,800-3,500 vectors/sec | Single-threaded insertion with metadata |
+| **Index Build Time** | 45-60 seconds | HNSW index construction for 100K vectors |
+| **Single Query Search** | 0.5-2.0 milliseconds | k=10 nearest neighbors |
+| **Batch Search (100 queries)** | 150-200 queries/sec | k=10 per query |
+| **Memory Usage** | ~1.5GB | Including vectors, metadata, and HNSW index |
+| **Storage Efficiency** | ~15MB on disk | HDF5 compression for 100K vectors |
+
+**Performance Tuning Options:**
+- **Faster Build**: Reduce `ef_construction` (trades accuracy for speed)
+- **Faster Search**: Reduce `ef_search` (trades accuracy for speed)
+- **Memory Optimization**: Use `m=8` instead of `m=16` (fewer connections)
+- **Storage Mode**: In-memory for speed, persistent for data persistence
+
+**Benchmark Code:**
+```bash
+# Run performance benchmarks using CLI
+octanedb benchmark --count 100000 --dimension 384
+
+# Or use the comprehensive Python benchmarking script
+python benchmark_octanedb.py --vectors 100000 --dimension 384 --runs 5
+
+# Or use the Python API directly
+from octanedb import OctaneDB
+db = OctaneDB(dimension=384)
+# ... run your own benchmarks
+```
+
+*Note: Performance varies based on hardware, dataset characteristics, and HNSW parameters. These numbers represent typical performance on the specified hardware configuration.*
 
 ## **Architecture**
 
@@ -295,7 +328,7 @@ OctaneDB
     └── Compression
 ```
 
-## 🔌 **Installation Options**
+## **Installation Options**
 
 ### **Basic Installation**
 ```bash
@@ -317,9 +350,9 @@ pip install -e .
 ##  **Requirements**
 
 - **Python**: 3.8+
-- **Core**: NumPy, SciPy, h5py, msgpack
+- **Core Dependencies**: NumPy, h5py, msgpack, tqdm
 - **Text Embeddings**: sentence-transformers, transformers, torch
-- **Optional**: CUDA for GPU acceleration
+- **Optional**: CUDA for GPU acceleration, matplotlib, pandas, seaborn for benchmarking
 
 
 ##  **Contributing**
@@ -334,7 +367,7 @@ pip install -e ".[dev]"
 pytest tests/
 ```
 
-## 📄 **License**
+## **License**
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
@@ -345,4 +378,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **HDF5**: For efficient vector storage
 - **NumPy**: For fast numerical operations
 
-*OctaneDB: Where speed meets simplicity in vector databases.*
+## **Note**
+A significant amount of the codebase was initially drafted using Cursor to accelerate boilerplate and some function implementations.
+
