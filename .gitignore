@@ -2,3 +2,6 @@ __pycache__/
 demo.py
 tests/
 working_example.py
+dist/
+octanedb.egg-info/
+build_package.py

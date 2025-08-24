@@ -10,46 +10,40 @@
 
 **OctaneDB** is a lightweight, high-performance Python vector database library that provides **10x faster** performance than existing solutions like Pinecone, ChromaDB, and Qdrant. Built with modern Python and optimized algorithms, it's perfect for AI/ML applications requiring fast similarity search.
 
-## ✨ **Key Features**
+## **Key Features**
 
-### 🚀 **Performance**
+### **Performance**
 - **10x faster** than existing vector databases
 - **Sub-millisecond** query response times
 - **3,000+ vectors/second** insertion rate
 - **Optimized memory usage** with HDF5 compression
 
-### 🧠 **Advanced Indexing**
+### **Advanced Indexing**
 - **HNSW (Hierarchical Navigable Small World)** for ultra-fast approximate search
 - **FlatIndex** for exact similarity search
 - **Configurable parameters** for performance tuning
 - **Automatic index optimization**
 
-### 📚 **Text Embedding Support** 🆕
-- **ChromaDB-compatible API** for easy migration
+### **Text Embedding Support** 
+
 - **Automatic text-to-vector conversion** using sentence-transformers
 - **Multiple embedding models** (all-MiniLM-L6-v2, all-mpnet-base-v2, etc.)
 - **GPU acceleration** support (CUDA)
 - **Batch processing** for improved performance
 
-### 💾 **Flexible Storage**
+### **Flexible Storage**
 - **In-memory** for maximum speed
 - **Persistent** file-based storage
 - **Hybrid** mode for best of both worlds
 - **HDF5 format** for efficient compression
 
-### 🔍 **Powerful Search**
+### **Powerful Search**
 - **Multiple distance metrics**: Cosine, Euclidean, Dot Product, Manhattan, Chebyshev, Jaccard
 - **Advanced metadata filtering** with logical operators
 - **Batch search** operations
 - **Text-based search** with automatic embedding
 
-### 🛠️ **Developer Experience**
-- **Simple, intuitive API** similar to ChromaDB
-- **Comprehensive documentation** and examples
-- **Type hints** throughout
-- **Extensive testing** suite
 
-## 🚀 **Quick Start**
 
 ### **Installation**
 
@@ -99,7 +93,7 @@ for doc_id, distance, metadata in results:
     print(f"Metadata: {metadata}")
 ```
 
-## 📚 **Text Embedding Examples**
+## **Text Embedding Examples**
 
 ### **Working Basic Usage**
 
@@ -153,23 +147,6 @@ for doc_id, distance, metadata in results:
     print(f"  • {doc_id}: {metadata.get('document', 'N/A')[:50]}...")
 ```
 
-### **ChromaDB Migration**
-
-If you're using ChromaDB, migrating to OctaneDB is seamless:
-
-```python
-# Old ChromaDB code
-# collection.add(
-#     ids=["id1", "id2"],
-#     documents=["doc1", "doc2"]
-# )
-
-# New OctaneDB code (identical API!)
-db.add(
-    ids=["id1", "id2"],
-    documents=["doc1", "doc2"]
-)
-```
 
 ### **Advanced Text Operations**
 
@@ -202,7 +179,7 @@ result = db.add(
 )
 ```
 
-## 🔧 **Advanced Usage**
+## **Advanced Usage**
 
 ### **Performance Tuning**
 
@@ -250,7 +227,7 @@ results = db.search_text(
 )
 ```
 
-## 🔧 **Troubleshooting**
+## **Troubleshooting**
 
 ### **Common Issues**
 
@@ -281,7 +258,7 @@ for doc_id, distance, metadata in results:
         print(f"  Category: {metadata.get('category', 'N/A')}")
 ```
 
-## 📊 **Performance Benchmarks**
+## **Performance Benchmarks**
 
 | Operation | OctaneDB | ChromaDB | Pinecone | Qdrant |
 |-----------|----------|----------|----------|---------|
@@ -292,7 +269,7 @@ for doc_id, distance, metadata in results:
 
 *Benchmarks performed on 100K vectors, 384 dimensions, Intel i7-12700K, 32GB RAM*
 
-## 🏗️ **Architecture**
+## **Architecture**
 
 ```
 OctaneDB
@@ -337,23 +314,15 @@ cd octanedb
 pip install -e .
 ```
 
-## 📋 **Requirements**
+##  **Requirements**
 
 - **Python**: 3.8+
 - **Core**: NumPy, SciPy, h5py, msgpack
 - **Text Embeddings**: sentence-transformers, transformers, torch
 - **Optional**: CUDA for GPU acceleration
 
-## 🚀 **Use Cases**
 
-- **AI/ML Applications**: Fast similarity search for embeddings
-- **Document Search**: Semantic search across text documents
-- **Recommendation Systems**: Find similar items quickly
-- **Image Search**: Vector similarity for image embeddings
-- **NLP Applications**: Text clustering and similarity
-- **Research**: Fast prototyping and experimentation
-
-## 🤝 **Contributing**
+##  **Contributing**
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
@@ -369,21 +338,11 @@ pytest tests/
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 **Acknowledgments**
+## **Acknowledgments**
 
 - **HNSW Algorithm**: Based on the Hierarchical Navigable Small World paper
 - **Sentence Transformers**: For text embedding capabilities
 - **HDF5**: For efficient vector storage
 - **NumPy**: For fast numerical operations
-
-## 📞 **Support**
-
-- **Documentation**: [GitHub Wiki](https://github.com/RijinRaju/octanedb/wiki)
-- **Issues**: [GitHub Issues](https://github.com/RijinRaju/octanedb/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/RijinRaju/octanedb/discussions)
-
----
-
-**Made with ❤️ by the OctaneDB Team**
 
 *OctaneDB: Where speed meets simplicity in vector databases.*
