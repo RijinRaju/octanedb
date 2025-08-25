@@ -378,6 +378,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **HDF5**: For efficient vector storage
 - **NumPy**: For fast numerical operations
 
-## **Note**
-A significant amount of the codebase was initially drafted using Cursor to accelerate boilerplate and some function implementations.
+## **Development Note**
+
+**AI-Assisted Development**: This codebase was extensively developed with the assistance of Large Language Models (LLMs). The LLM assistance included:
+- Initial project structure
+- Core algorithm implementations (HNSW indexing, vector operations)
+- Documentation 
+- Performance optimization suggestions
 
